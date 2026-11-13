@@ -74,12 +74,22 @@ $courseids[] = 0;
 [$insql, $params] = $DB->get_in_or_equal($courseids, SQL_PARAMS_NAMED, 'cid');
 $params['userid'] = $id;
 
+// Paginated posts. When a followers/following list is shown, "page" belongs to that list.
+$postpage = ($list === '') ? $page : 0;
 $posts = $DB->get_records_select(
     'local_chuspasocial_post',
     "userid = :userid AND hidden = 0 AND courseid $insql",
     $params,
-    'timecreated DESC, id DESC'
+    'timecreated DESC, id DESC',
+    '*',
+    $postpage * $perpage,
+    $perpage + 1
 );
+// One extra record tells whether there is a next page.
+$hasnext = count($posts) > $perpage;
+if ($hasnext) {
+    array_pop($posts);
+}
 
 echo $OUTPUT->header();
 
@@ -138,6 +148,26 @@ foreach ($posts as $post) {
     echo html_writer::start_div('local-chuspasocial-post');
     echo html_writer::div(format_text($post->content, $post->format, ['context' => $context]));
     echo html_writer::div(userdate($post->timecreated));
+    echo html_writer::end_div();
+}
+
+// Navigation between pages of posts, keeping the profile id.
+if ($postpage > 0 || $hasnext) {
+    echo html_writer::start_div('d-flex justify-content-between mt-3');
+    if ($postpage > 0) {
+        echo html_writer::link(
+            new moodle_url($profileurl, ['page' => $postpage - 1]),
+            get_string('previous'),
+            ['class' => 'btn btn-secondary']
+        );
+    }
+    if ($hasnext) {
+        echo html_writer::link(
+            new moodle_url($profileurl, ['page' => $postpage + 1]),
+            get_string('next'),
+            ['class' => 'btn btn-secondary']
+        );
+    }
     echo html_writer::end_div();
 }
 
