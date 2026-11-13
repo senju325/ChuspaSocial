@@ -33,18 +33,25 @@ class comment_service {
     /**
      * Get the comments of a post, oldest first.
      *
-     * Returns an empty array when the post does not exist or is hidden.
+     * Returns an empty array when the post does not exist, is hidden or the
+     * current user cannot view it.
      * Comments hidden by moderation are not returned.
      *
      * @param int $postid ID of the post to get the comments from.
      * @return array List of comment records, oldest first.
      */
     public static function get_comments(int $postid): array {
-        global $DB;
+        global $DB, $USER;
 
         // The comments are only visible when the post is visible.
         $post = $DB->get_record('local_chuspasocial_post', ['id' => $postid], 'id, hidden');
         if (!$post || !empty($post->hidden)) {
+            return [];
+        }
+
+        // The comments are only visible to users who can view the post.
+        $persistentpost = new \local_chuspasocial\local\persistent\post($postid);
+        if (!post_service::can_view($persistentpost, (int) $USER->id)) {
             return [];
         }
 
